@@ -1,0 +1,100 @@
+name: build_kernelsu_for_polaris
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "0 4 * * 5"
+jobs:
+  build:
+    env:
+      useAnykernel: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Set swap to 10G
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 10
+      # - name: Check version
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt install git curl
+      #     cd /home/runner
+      #     mkdir tmp
+      #     cd tmp
+      #     git clone https://github.com/tiann/KernelSU.git -b main
+      #     cd KernelSU
+      #     KSU_VER=$(expr 10000 + $(git rev-list --count HEAD) + 200)
+      #     if [ ${{ vars.KSU_LOCAL_VER }} -ge $KSU_VER ]; then
+      #       echo "::error::NO UPDATE!! (KSU_LOCAL_VER:${{ vars.KSU_LOCAL_VER }} is not less than KSU_VER:$KSU_VER), stopping workflow"
+      #       exit 1
+      #     fi
+      #     curl -L -X PATCH -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.TOKEN }} " -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/Initsnow/kernelsu_xiaomi_polaris_action/actions/variables/KSU_LOCAL_VER -d '{"name":"KSU_LOCAL_VER","value":"'"${KSU_VER}"'"}'
+      #     echo "KSU_VER=${KSU_VER}" >> $GITHUB_ENV
+      #   shell: bash
+      - name: Set Version
+        run: |
+          echo "KSU_VER=11878" >> $GITHUB_ENV
+      - name: Setup build kernel environment
+        run: |
+          sudo apt-get update
+          sudo apt install bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libncurses5 libsdl1.2-dev libssl-dev libwxgtk3.0-gtk3-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev make unzip python-is-python3
+
+      - name: Download kernel source
+        run: |
+          cd /home/runner
+          git clone https://github.com/Initsnow/android_kernel_xiaomi_sdm845.git -b lineage-21 --depth=1 kernel_sdm845
+
+      - name: Download gcc and clang
+        run: |
+          cd /home/runner
+          git clone https://github.com/PixelExperience/prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git --depth=1 gcc_aarch64
+          git clone https://github.com/PixelExperience/prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git --depth=1 gcc_arm
+          git clone https://github.com/PixelExperience/prebuilts_clang_kernel_linux-x86_clang-r416183b.git --depth=1 clang-r416183b
+
+      - name: Patch kernel source
+        run: |
+          cd /home/runner/kernel_sdm845
+          # curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s b766b98513b5a7eb33bc1c4a76b5702bf1288f07
+          curl -LSs "https://raw.githubusercontent.com/Initsnow/KernelSU_Patch/main/kernel/setup.sh" | bash -s main
+      - name: Build
+        run: |
+          cd /home/runner/kernel_sdm845
+          PATH="/home/runner/clang-r416183b/bin:${PATH}"
+          cat ./arch/arm64/configs/vendor/xiaomi/mi845_defconfig > ./arch/arm64/configs/vendor/xiaomi/polaris_defconfig
+          cat ./arch/arm64/configs/vendor/xiaomi/polaris.config >> ./arch/arm64/configs/vendor/xiaomi/polaris_defconfig
+          make O=out ARCH=arm64 vendor/xiaomi/polaris_defconfig
+          make -j$(nproc --all) O=out CC=clang ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=/home/runner/gcc_aarch64/bin/aarch64-linux-android- CROSS_COMPILE_ARM32=/home/runner/gcc_arm/bin/arm-linux-androideabi- AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip LLVM_IAS=1 LLVM=1
+      - name: Print date
+        run: |
+          echo "START_TIME=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+      - name: Pack AnyKernel3.zip
+        run: |
+          cd /home/runner/kernel_sdm845
+          git clone --recursive --depth=1 -j $(nproc) --branch polaris https://github.com/Shuery-Shuai/AnyKernel3.git AnyKernel3
+          cp out/arch/arm64/boot/Image AnyKernel3/
+          cp out/arch/arm64/boot/Image.gz AnyKernel3/
+          cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          cd /home/runner/kernel_sdm845/AnyKernel3
+          zip -r ../AnyKernel3.zip *
+
+          echo "KernelSU version: ${{ env.KSU_VER }}" >> $GITHUB_STEP_SUMMARY
+          echo "Flash zip using recovery" >> $GITHUB_STEP_SUMMARY
+
+      - name: "Upload AnyKernel3 image"
+        uses: actions/upload-artifact@v3
+        if: success()
+        with:
+          name: "AnyKernel3"
+          path: "/home/runner/kernel_sdm845/AnyKernel3/*"
+
+      - name: "Create GitHub Release"
+        continue-on-error: true
+        uses: softprops/action-gh-release@v1
+        if: ${{ env.useAnykernel == 'true'}}
+        with:
+          tag_name: "v${{ env.START_TIME }}.${{ github.run_number }}"
+          body: "KernelSU version: ${{ env.KSU_VER }}"
+          files: "/home/runner/kernel_sdm845/AnyKernel3.zip"
+          generate_release_notes: true
