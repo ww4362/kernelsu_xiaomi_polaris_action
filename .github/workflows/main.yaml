@@ -35,7 +35,7 @@ jobs:
       #   shell: bash
       - name: Set Version
         run: |
-          echo "KSU_VER=11878" >> $GITHUB_ENV
+          echo "KSU_VER=11941" >> $GITHUB_ENV
       - name: Setup build kernel environment
         run: |
           sudo apt-get update
@@ -58,6 +58,7 @@ jobs:
           cd /home/runner/kernel_sdm845
           # curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s b766b98513b5a7eb33bc1c4a76b5702bf1288f07
           curl -LSs "https://raw.githubusercontent.com/Initsnow/KernelSU_Patch/main/kernel/setup.sh" | bash -s main
+
       - name: Build
         run: |
           cd /home/runner/kernel_sdm845
