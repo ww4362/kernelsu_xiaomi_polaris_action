@@ -44,7 +44,7 @@ jobs:
       - name: Download kernel source
         run: |
           cd /home/runner
-          git clone https://github.com/Initsnow/android_kernel_xiaomi_sdm845.git -b lineage-21 --depth=1 kernel_sdm845
+          git clone https://github.com/Initsnow/android_kernel_xiaomi_sdm845.git -b kernelsu --depth=1 kernel_sdm845
 
       - name: Download gcc and clang
         run: |
