@@ -44,7 +44,7 @@ jobs:
       - name: Download kernel source
         run: |
           cd /home/runner
-          git clone https://github.com/ww4362/kernel_xiaomi_polaris.git -b kernelsu --depth=1 kernel_sdm845
+          git clone https://github.com/ww4362/kernel_xiaomi_polaris.git -b thirteen --depth=1 kernel_sdm845
 
       - name: Download gcc and clang
         run: |
