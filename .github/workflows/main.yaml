@@ -64,7 +64,7 @@ jobs:
           cd /home/runner/kernel_sdm845
           PATH="/home/runner/clang-r416183b/bin:${PATH}"
           cat ./arch/arm64/configs/sdm845_defconfig > ./arch/arm64/configs/polaris_defconfig
-          cat ./arch/arm64/configs/polaris.config >> ./arch/arm64/configs/polaris_defconfig
+          cat ./arch/arm64/configs/polaris_defconfig >> ./arch/arm64/configs/polaris_defconfig
           make O=out ARCH=arm64 polaris_defconfig
           make -j$(nproc --all) O=out CC=clang ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=/home/runner/gcc_aarch64/bin/aarch64-linux-android- CROSS_COMPILE_ARM32=/home/runner/gcc_arm/bin/arm-linux-androideabi- AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip LLVM_IAS=1 LLVM=1
       - name: Print date
